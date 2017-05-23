@@ -1,5 +1,5 @@
 import logging
-from .firmware import Firmware
+from .firmware import Firmware, DeltaParameters
 from kinematics.main import Position
 import re
 import time
@@ -27,12 +27,44 @@ class GCodeSender(object):
         return output
 
 
+class MarlinDeltaParameters(DeltaParameters):
+    def __init__(self, firmware):
+        self.__firmware = firmware
+        # TODO initialize delta parameters from eeprom
+        self.__radius = None
+
+    @property
+    def radius(self):
+        return self.__radius
+
+    @radius.setter
+    def radius(self, value):
+        self.__radius = round(value, 3)
+        self.__firmware.send(f'M665 R{self.__radius}')
+
+    @property
+    def endstops(self):
+        return [0, 0, 0]
+
+    @property
+    def rod_length(self):
+        return [194, 194, 194]
+
+
 class MarlinFirmware(Firmware):
+    @property
+    def parameters(self):
+        return self.__parameters
+
     _position = None
 
     def __init__(self, serial_writer):
+        self.__parameters = MarlinDeltaParameters(self)
         self._sender = GCodeSender(serial_writer)
         super().__init__()
+
+    def send(self, gcode):
+        return self._sender.send(gcode)
 
     def home(self):
         self._sender.send('G28')
