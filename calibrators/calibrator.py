@@ -5,14 +5,25 @@ from typing import Iterable
 
 class CalibrationTask(ABC):
     progress = None
+    description = ''
+    result = None
 
     @abstractmethod
     def __iter__(self): pass
 
+    def execute(self):
+        for _ in self:
+            pass
+
     def __str__(self):
-        return f'{type(self).__name__}: {self.progress}%'
+        progress_str = f'{self.progress}%' if self.progress is not None else 'unknown'
+        return f'{self.description} ({type(self).__name__}): {progress_str}'
 
 
 class Calibrator(ABC):
     @abstractmethod
     def __iter__(self) -> Iterable[CalibrationTask]: pass
+
+    @property
+    @abstractmethod
+    def result(self): pass
