@@ -11,7 +11,7 @@ class CalibrationTask(ABC):
     @abstractmethod
     def __iter__(self): pass
 
-    def execute(self):
+    def run(self):
         for _ in self:
             pass
 
@@ -27,3 +27,7 @@ class Calibrator(ABC):
     @property
     @abstractmethod
     def result(self): pass
+
+    def run(self):
+        for task in self:
+            task.run()
