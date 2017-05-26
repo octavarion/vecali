@@ -46,7 +46,14 @@ with SerialMock('/dev/ttyUSB0', baudrate=250000) as port:
     #                              parameters.endstops)
     calibrator = MinimizationCalibrator(measurer, DeltaKinematics, [])
 
-    for task in calibrator:
-        for step in task:
-            print(task)
-    print(calibrator.result)
+    result = calibrator.calibrate()
+    level = -1
+    for step in result:
+        if step.value == 0:
+            level += 1
+
+        print('\t'*level + f'{step.description}: {step.value*100}%')
+
+        if step.completed:
+            level -= 1
+    print(result.value)
