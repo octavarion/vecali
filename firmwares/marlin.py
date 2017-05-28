@@ -121,4 +121,5 @@ class MarlinFirmware(Firmware):
         x = position.x
         y = position.y
         z = float(m.group('z'))
+        self.position = position
         return x, y, z
