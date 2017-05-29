@@ -62,7 +62,7 @@ class SerialMock(object):
         self._lines = self._lines[1:]
         return line
 
-with Serial('/dev/ttyUSB0', baudrate=250000) as port:
+with SerialMock('/dev/ttyUSB0', baudrate=250000) as port:
     firmware = MarlinFirmware(port)
     reader = GridReader(device_index=0, grid_size=5, max_radius=70)
     measurer = CameraMeasurer(firmware, reader, camera_height=124, probe_offset=[15.5, -3.5])
@@ -86,8 +86,7 @@ with Serial('/dev/ttyUSB0', baudrate=250000) as port:
             print(start + '\t'*level + f'{step.description}: {round(step.value, 4)*100}%', end='')
         else:
             # print('\n' + '\t'*level + str(step.value))
-            plot_bed(step.value[0])
-            plot_bed(step.value[1])
+            plot_bed(step.value)
 
         if step.completed:
             level -= 1

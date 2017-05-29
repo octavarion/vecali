@@ -32,9 +32,6 @@ class DeltaParameters(ABC):
 
 
 class Firmware(ABC):
-    def __init__(self):
-        self.home()
-
     @property
     @abstractmethod
     def parameters(self): pass

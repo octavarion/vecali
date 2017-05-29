@@ -21,6 +21,8 @@ class GridReader(object):
         self.grid_size = grid_size
         self.max_radius = max_radius
 
+        self.grid_rotation = 0
+
 
 class CameraMeasurer(Measurer):
     __speed = 2000
@@ -36,30 +38,37 @@ class CameraMeasurer(Measurer):
         self.__probe_offset = probe_offset
         self.__height = camera_height
 
-    def _generate_points(self, radiuses, scale=False):
-        mR = radiuses[-1]
-        R = mR * self.__reader.grid_size
-        a = 2*R * np.sin(np.pi/(6))
-        r = a/2 * (1/np.tan(np.pi/(6)))
-        ratio = ((r/R) * 0.9) if scale else 1
-        print(f'ratio: {ratio}')
+        self.__phase += self.__reader.grid_rotation
+
+        self.__bed_plane = self._get_bed_plane()
+
+    def _generate_points(self, radiuses):
         for i in radiuses:
             if i == 0:
                 yield (0, 0)
             else:
-                for a in np.linspace(0, 2 * np.pi, num=6, endpoint=False):
-                    l = i * self.__reader.grid_size * ratio
+                for a in np.linspace(0, 2 * np.pi, num=6*i, endpoint=False):
+                    l = i * self.__reader.grid_size
                     x, y = (l * np.cos(a + self.__phase), l * np.sin(a + self.__phase))
                     yield x, y
 
-    def get_points(self, scale=False):
-        return self._generate_points(range(0, int(self.__reader.max_radius/self.__reader.grid_size)+1), scale=scale)
+    def _get_points(self):
+        return self._generate_points(range(0, int(self.__reader.max_radius/self.__reader.grid_size)+1))
 
-    def get_outline(self, scale=False):
-        return self._generate_points([int(self.__reader.max_radius/self.__reader.grid_size)], scale=scale)
+    def _get_outline(self):
+        return self._generate_points([int(self.__reader.max_radius/self.__reader.grid_size)])
+
+    def _get_bed_plane(self):
+        points = self._get_outline()
+        positions = [Position(x=x, y=y, z=self.__height, speed=2000) for x, y in points]
+        measurements = [self.__firmware.measure_z(p) for p in positions]
+        A = np.matrix([[x, y]] for x, y, _ in measurements)
+        b = [z for _, _, z in measurements]
+        x = np.linalg.lstsq(A, b)
+        return x
 
     def measure_z(self, outline=False):
-        points = list(self.get_points() if not outline else self.get_outline())
+        points = list(self._get_points() if not outline else self._get_outline())
         task = TaskProgress('Measuring bed (z-only)', total=len(points))
         yield task.begin()
 
@@ -73,20 +82,12 @@ class CameraMeasurer(Measurer):
             measurements.append((x + offset[0], y + offset[1], z))
             yield task.progress()
 
+        measurements = []
+
         self.__firmware.position = Position(x=0, y=0)
         yield task.complete()
 
-        measurements2 = None
-        if not outline:
-            x = [x for x, y, z in measurements]
-            y = [y for x, y, z in measurements]
-            z = [z for x, y, z in measurements]
-            f = Rbf(x, y, z, function='cubic', smooth=0)
-
-            scaled_points = list(self.get_points(scale=True) if not outline else self.get_outline(scale=True))
-            measurements2 = [(sp[0], sp[1], f(*sp)) for sp in scaled_points]
-
-        return measurements, measurements2
+        return measurements
 
     def measure_xy(self, outline=False):
         raise NotImplementedError()
